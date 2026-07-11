@@ -18,7 +18,7 @@ export default function Topbar({ module, onNavigate }) {
   return (
     <header className="topbar">
       <div className="crumb">
-        Clinic<span className="sep">/</span>{CRUMBS[module] || 'Dashboard'}
+        Clinic<span className="sep">/</span><span className="active">{CRUMBS[module] || 'Dashboard'}</span>
       </div>
       <div className="spacer" />
       <div className="clock">{now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })} · {now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>

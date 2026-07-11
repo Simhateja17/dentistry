@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useApp } from '../context/AppContext.jsx';
-import { saveSettings } from '../lib/settings.js';
+import { saveSettings, verifyPin } from '../lib/settings.js';
 import { exportBackup, importBackup, wipeAll } from '../lib/backup.js';
 import { canEditFinance, canManageTeam } from '../lib/settings.js';
 import { initials } from '../lib/name.js';
@@ -9,12 +9,14 @@ import { Icons } from '../components/Icons.jsx';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function Settings({ onNavigate }) {
-  const { settings, setSettings, session, toast } = useApp();
+  const { settings, setSettings, session, setSession, toast } = useApp();
   const canFinance = canEditFinance(session?.role);
   const canTeam = canManageTeam(session?.role);
   const fileRef = useRef(null);
   const [draft, setDraft] = useState(() => JSON.parse(JSON.stringify(settings)));
   const [tab, setTab] = useState('clinic');
+  const [pinForm, setPinForm] = useState({ current: '', next: '', confirm: '' });
+  const [deletePin, setDeletePin] = useState('');
 
   const upd = (path, value) => {
     setDraft((d) => {
@@ -46,6 +48,58 @@ export default function Settings({ onNavigate }) {
     await wipeAll(); toast('Data erased'); setTimeout(() => location.reload(), 900);
   };
 
+  const setPinField = (field, value) => {
+    setPinForm((f) => ({ ...f, [field]: value.replace(/\D/g, '').slice(0, 4) }));
+  };
+
+  const changePin = async (e) => {
+    e.preventDefault();
+    if (!verifyPin(settings, session.memberId, pinForm.current)) {
+      toast('Current PIN is incorrect');
+      return;
+    }
+    if (!/^\d{4}$/.test(pinForm.next)) {
+      toast('New PIN must be 4 digits');
+      return;
+    }
+    if (pinForm.next !== pinForm.confirm) {
+      toast('New PIN and confirmation do not match');
+      return;
+    }
+    const team = settings.team.map((m) => (
+      m.id === session.memberId ? { ...m, pin: pinForm.next, locked: false } : m
+    ));
+    const saved = await saveSettings({ ...settings, team });
+    setSettings(saved);
+    setDraft(JSON.parse(JSON.stringify(saved)));
+    setPinForm({ current: '', next: '', confirm: '' });
+    toast('PIN changed');
+  };
+
+  const deleteAccount = async () => {
+    const member = settings.team.find((m) => m.id === session.memberId);
+    if (!member) {
+      toast('Current account was not found');
+      return;
+    }
+    const ownerCount = settings.team.filter((m) => m.role === 'owner').length;
+    if (member.role === 'owner' && ownerCount <= 1) {
+      toast('Add another owner before deleting this owner account');
+      return;
+    }
+    if (!verifyPin(settings, session.memberId, deletePin)) {
+      toast('Enter your current PIN to delete this account');
+      return;
+    }
+    if (!confirm(`Delete ${member.name}'s account? This profile will no longer be able to sign in.`)) return;
+    const saved = await saveSettings({
+      ...settings,
+      team: settings.team.filter((m) => m.id !== session.memberId),
+    });
+    setSettings(saved);
+    setSession(null);
+  };
+
   const toggleDay = (d) => {
     const days = draft.hours.daysOpen.includes(d) ? draft.hours.daysOpen.filter((x) => x !== d) : [...draft.hours.daysOpen, d];
     upd('hours.daysOpen', days);
@@ -56,18 +110,19 @@ export default function Settings({ onNavigate }) {
     { id: 'ops', label: 'Hours & Capacity' },
     { id: 'billing', label: 'Billing & GST' },
     { id: 'choices', label: 'Preferences' },
+    { id: 'security', label: 'Account & Security' },
     { id: 'team', label: 'Team' },
     { id: 'data', label: 'Backup & Data' },
   ];
 
   return (
-    <div>
+    <div style={{ maxWidth: 1280, margin: '0 auto', width: '100%' }}>
       <div className="page-head">
         <h1>Settings</h1>
         <div className="sub">Clinic configuration, tax, preferences, and data backup.</div>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, borderBottom: '1px solid var(--line)', marginBottom: 20, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: 6, borderBottom: '1px solid var(--line)', marginBottom: 20, flexWrap: 'wrap' }}>
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, color: tab === t.id ? 'var(--blue)' : 'var(--muted)', borderBottom: tab === t.id ? '2px solid var(--blue)' : '2px solid transparent', marginBottom: -1, transition: 'color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease)' }}>
             {t.label}
@@ -76,7 +131,7 @@ export default function Settings({ onNavigate }) {
       </div>
 
       {tab === 'clinic' && (
-        <div className="card pad" style={{ display: 'grid', gap: 16, maxWidth: 640 }}>
+        <div className="card pad" style={{ display: 'grid', gap: 16, maxWidth: 640, margin: '0 auto' }}>
           <div>
             <label className="field-label">Clinic name</label>
             <input className="field" value={draft.clinic.name} disabled={!canFinance} onChange={(e) => upd('clinic.name', e.target.value)} placeholder="Bright Smile Dental Clinic" />
@@ -99,7 +154,7 @@ export default function Settings({ onNavigate }) {
       )}
 
       {tab === 'ops' && (
-        <div className="card pad" style={{ display: 'grid', gap: 16, maxWidth: 640 }}>
+        <div className="card pad" style={{ display: 'grid', gap: 16, maxWidth: 640, margin: '0 auto' }}>
           <div className="field-row cols-2">
             <div><label className="field-label">Opening time</label><input type="time" className="field" value={draft.hours.opening} disabled={!canFinance} onChange={(e) => upd('hours.opening', e.target.value)} /></div>
             <div><label className="field-label">Closing time</label><input type="time" className="field" value={draft.hours.closing} disabled={!canFinance} onChange={(e) => upd('hours.closing', e.target.value)} /></div>
@@ -121,7 +176,7 @@ export default function Settings({ onNavigate }) {
       )}
 
       {tab === 'billing' && (
-        <div className="card pad" style={{ display: 'grid', gap: 16, maxWidth: 640 }}>
+        <div className="card pad" style={{ display: 'grid', gap: 16, maxWidth: 640, margin: '0 auto' }}>
           <div className="field-row cols-2">
             <div><label className="field-label">Invoice prefix</label><input className="field" value={draft.billing.invoicePrefix} disabled={!canFinance} onChange={(e) => upd('billing.invoicePrefix', e.target.value)} style={{ fontFamily: 'var(--font-mono)' }} /></div>
             <div><label className="field-label">Next invoice number</label><input type="number" className="field" value={draft.billing.nextInvoiceNumber} disabled={!canFinance} onChange={(e) => upd('billing.nextInvoiceNumber', parseInt(e.target.value) || 1001)} /></div>
@@ -151,7 +206,7 @@ export default function Settings({ onNavigate }) {
       )}
 
       {tab === 'choices' && (
-        <div className="card pad" style={{ display: 'grid', gap: 18, maxWidth: 640 }}>
+        <div className="card pad" style={{ display: 'grid', gap: 18, maxWidth: 640, margin: '0 auto' }}>
           <ChoiceRow label="Scheduling view" desc="How the appointment screen lays out." value={draft.choices.schedulingMode} disabled={!canFinance} onChange={(v) => upd('choices.schedulingMode', v)} options={[{ v: 'grid', t: 'Day grid', d: 'Chairs × time slots (recommended)' }, { v: 'list', t: 'Simple list', d: 'Sortable list of appointments' }, { v: 'week', t: 'Week view', d: 'Multi-day columns' }]} />
           <ChoiceRow label="Tooth numbering system" desc="How teeth are labeled on the odontogram." value={draft.choices.numberingSystem} disabled={!canFinance} onChange={(v) => upd('choices.numberingSystem', v)} options={[{ v: 'fdi', t: 'FDI (1–4 quadrants)', d: 'Standard in India' }, { v: 'universal', t: 'Universal (1–32)', d: 'US-style sequential' }]} />
           <ChoiceRow label="Invoice template" desc="Receipt layout style." value={draft.choices.invoiceTemplate} disabled={!canFinance} onChange={(v) => upd('choices.invoiceTemplate', v)} options={[{ v: 'standard', t: 'Standard', d: 'Itemized with GST split' }, { v: 'compact', t: 'Compact thermal', d: '80mm narrow format' }]} />
@@ -160,7 +215,7 @@ export default function Settings({ onNavigate }) {
       )}
 
       {tab === 'team' && (
-        <div className="card pad" style={{ maxWidth: 640 }}>
+        <div className="card pad" style={{ maxWidth: 640, margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <div className="section-title">Team roster ({draft.team.length})</div>
             {canTeam && <button className="btn btn-primary" style={{ fontSize: 12.5, padding: '7px 14px' }} onClick={() => onNavigate?.('staffonboard')}><Icons.plus size={15} /> Add team member</button>}
@@ -182,8 +237,65 @@ export default function Settings({ onNavigate }) {
         </div>
       )}
 
+      {tab === 'security' && (
+        <div className="card pad" style={{ maxWidth: 640, display: 'grid', gap: 18, margin: '0 auto' }}>
+          <div>
+            <div className="section-title" style={{ marginBottom: 4 }}>Signed in as</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', border: '1px solid var(--line)', borderRadius: 9 }}>
+              <div className="avatar" style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(145deg,#1a6be8,#0058BA)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11 }}>{initials(session?.name)}</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13.5 }}>{session?.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>{session?.role}</div>
+              </div>
+            </div>
+          </div>
+
+          <form onSubmit={changePin} style={{ borderTop: '1px solid var(--line)', paddingTop: 16, display: 'grid', gap: 14 }}>
+            <div>
+              <div className="section-title" style={{ marginBottom: 4 }}>Change PIN</div>
+              <div style={{ fontSize: 12.5, color: 'var(--muted)' }}>Enter your current PIN before setting a new 4-digit PIN.</div>
+            </div>
+            <div className="field-row cols-3">
+              <div>
+                <label className="field-label">Current PIN</label>
+                <input className="field" value={pinForm.current} onChange={(e) => setPinField('current', e.target.value)} inputMode="numeric" autoComplete="current-password" placeholder="••••" style={{ letterSpacing: 6 }} />
+              </div>
+              <div>
+                <label className="field-label">New PIN</label>
+                <input className="field" value={pinForm.next} onChange={(e) => setPinField('next', e.target.value)} inputMode="numeric" autoComplete="new-password" placeholder="••••" style={{ letterSpacing: 6 }} />
+              </div>
+              <div>
+                <label className="field-label">Confirm PIN</label>
+                <input className="field" value={pinForm.confirm} onChange={(e) => setPinField('confirm', e.target.value)} inputMode="numeric" autoComplete="new-password" placeholder="••••" style={{ letterSpacing: 6 }} />
+              </div>
+            </div>
+            <div>
+              <button type="submit" className="btn btn-primary"><Icons.check size={16} /> Save PIN</button>
+            </div>
+          </form>
+
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+            <div className="section-title" style={{ marginBottom: 4 }}>Logout</div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 10 }}>Return to the PIN lock screen.</div>
+            <button className="btn btn-danger" onClick={() => setSession(null)}><Icons.logout size={16} /> Logout</button>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+            <div className="section-title" style={{ marginBottom: 4, color: 'var(--red)' }}>Delete account</div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 10 }}>Remove this staff profile from the clinic. Patient and clinic records are not deleted.</div>
+            <div className="field-row cols-2" style={{ alignItems: 'end' }}>
+              <div>
+                <label className="field-label">Current PIN</label>
+                <input className="field" value={deletePin} onChange={(e) => setDeletePin(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" autoComplete="current-password" placeholder="••••" style={{ letterSpacing: 6 }} />
+              </div>
+              <button className="btn btn-danger" onClick={deleteAccount}>Delete my account</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {tab === 'data' && (
-        <div className="card pad" style={{ maxWidth: 640, display: 'grid', gap: 14 }}>
+        <div className="card pad" style={{ maxWidth: 640, display: 'grid', gap: 14, margin: '0 auto' }}>
           <div>
             <div className="section-title" style={{ marginBottom: 4 }}>Export backup</div>
             <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 10 }}>Download a JSON file with all clinic data. Store it on a pen drive or cloud folder.</div>
@@ -203,8 +315,8 @@ export default function Settings({ onNavigate }) {
         </div>
       )}
 
-      {canFinance && tab !== 'data' && tab !== 'team' && (
-        <div style={{ marginTop: 18, display: 'flex', gap: 10 }}>
+      {canFinance && tab !== 'data' && tab !== 'team' && tab !== 'security' && (
+        <div style={{ margin: '18px auto 0', display: 'flex', gap: 10, maxWidth: 640 }}>
           <button className="btn btn-primary" onClick={save}><Icons.check size={16} /> Save changes</button>
         </div>
       )}

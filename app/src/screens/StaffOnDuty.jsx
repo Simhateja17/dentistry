@@ -43,7 +43,7 @@ export default function StaffOnDuty() {
             const ts = clockedIn[m.id];
             const elapsed = ts ? elapsedLabel(now - ts.clockIn) : '';
             return (
-              <div key={m.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, borderLeft: '3px solid var(--green)' }}>
+              <div key={m.id} className="card" style={{ padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(145deg,#1a6be8,#0058BA)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13 }}>{initials(m.name)}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 14 }}>{m.name} <span className="chip chip-blue" style={{ marginLeft: 6 }}>{m.role}</span></div>

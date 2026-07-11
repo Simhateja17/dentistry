@@ -31,6 +31,10 @@ export default function Sidebar({ module, onNavigate }) {
         </div>
       ))}
       <div style={{ flex: 1 }} />
+      <div className="sidebar-status">
+        <div className="status-title"><span className="status-dot" /> Clinic systems live</div>
+        <div className="status-copy">Appointments, billing, records, and local data are ready.</div>
+      </div>
       <div className="nav-group" style={{ marginTop: 'auto' }}>
         <button className={'nav-item' + (module === 'settings' ? ' active' : '')} onClick={() => onNavigate('settings')}>
           <span className="ic"><Icons.settings size={18} /></span>

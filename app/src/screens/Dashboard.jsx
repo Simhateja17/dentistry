@@ -85,7 +85,7 @@ export default function Dashboard({ onNavigate, onOpenVisit }) {
       </div>
 
       {isEmpty && (
-        <div className="card pad" style={{ marginBottom: 22, background: 'linear-gradient(135deg,#eaf2ff,#f6f9ff)' }}>
+        <div className="card pad" style={{ marginBottom: 22, background: 'var(--blue-bg)' }}>
           <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>Welcome to {settings?.clinic?.name || 'your clinic'} — let's get started</div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16 }}>Complete these steps to start running your clinic on Dental PMS.</div>
           <div style={{ display: 'grid', gap: 10 }}>

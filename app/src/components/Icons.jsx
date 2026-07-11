@@ -34,4 +34,5 @@ export const Icons = {
   download: (p) => <S {...p} d="M12 3v12M7 10l5 5 5-5M5 21h14" />,
   upload: (p) => <S {...p} d="M12 15V3M7 8l5-5 5 5M5 21h14" />,
   check: (p) => <S {...p} d="M20 6L9 17l-5-5" />,
+  logout: (p) => <S {...p} d="M10 17l5-5-5-5M15 12H3M21 3v18h-8" />,
 };

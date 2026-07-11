@@ -64,13 +64,13 @@ export default function StaffOnboarding() {
   };
 
   return (
-    <div>
+    <div style={{ maxWidth: 760, margin: '0 auto', width: '100%' }}>
       <div className="page-head">
         <h1>Staff Onboarding</h1>
         <div className="sub">Add team members and assign role-based access.</div>
       </div>
 
-      <div className="card pad" style={{ marginBottom: 22, maxWidth: 560 }}>
+      <div className="card pad" style={{ marginBottom: 22 }}>
         <div className="section-title" style={{ marginBottom: 14 }}>Add a new team member</div>
         <div style={{ display: 'grid', gap: 14 }}>
           <div><label className="field-label">Full name</label><input className="field" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="Anita Rao" /></div>

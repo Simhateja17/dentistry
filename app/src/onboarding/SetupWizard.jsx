@@ -9,10 +9,12 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export default function SetupWizard() {
   const { setSettings, setSession, toast } = useApp();
   const [showWelcome, setShowWelcome] = useState(true);
+  const [showAccount, setShowAccount] = useState(false);
   const [step, setStep] = useState(0);
   const [s, setS] = useState(() => JSON.parse(JSON.stringify(DEFAULT_SETTINGS)));
   const [ownerName, setOwnerName] = useState('');
   const [ownerPin, setOwnerPin] = useState('');
+  const [account, setAccount] = useState({ ownerName: '', phone: '', email: '', password: '', agreed: false });
 
   const TOTAL_STEPS = 5;
   const upd = (path, value) => setS((d) => {
@@ -44,7 +46,30 @@ export default function SetupWizard() {
   ];
   const meta = stepMeta[step];
 
-  if (showWelcome) return <Welcome onStart={() => setShowWelcome(false)} />;
+  const startAccount = () => {
+    setShowWelcome(false);
+    setShowAccount(true);
+  };
+
+  const submitAccount = () => {
+    if (!account.ownerName.trim()) { toast('Enter the owner name'); return; }
+    if (!account.phone.trim()) { toast('Enter the mobile number'); return; }
+    if (account.password.length < 8) { toast('Password must be at least 8 characters'); return; }
+    if (!account.agreed) { toast('Accept the terms to continue'); return; }
+    setOwnerName(account.ownerName.trim());
+    setS((d) => ({
+      ...d,
+      clinic: {
+        ...d.clinic,
+        phone: account.phone.trim(),
+        email: account.email.trim(),
+      },
+    }));
+    setShowAccount(false);
+  };
+
+  if (showWelcome) return <Welcome onStart={startAccount} onExisting={() => toast('No local clinic found. Create your clinic account first.')} />;
+  if (showAccount) return <AccountSignup account={account} setAccount={setAccount} onSubmit={submitAccount} onSignIn={() => toast('No local clinic found. Create your clinic account first.')} />;
 
   const back = () => setStep((i) => Math.max(0, i - 1));
   const next = () => setStep((i) => Math.min(TOTAL_STEPS - 1, i + 1));
@@ -199,37 +224,92 @@ export default function SetupWizard() {
   );
 }
 
-function Welcome({ onStart }) {
-  const features = [
-    { icon: Icons.appointments, title: 'Smart scheduling', desc: 'Chair-by-chair day grid with conflict guards' },
-    { icon: Icons.records, title: 'Full odontogram', desc: 'FDI charting with per-surface conditions' },
-    { icon: Icons.billing, title: 'GST-correct billing', desc: 'Tax-split invoices & bilingual receipts' },
-    { icon: Icons.lock, title: '100% offline', desc: 'Every record stays private on this device' },
-  ];
+function Welcome({ onStart, onExisting }) {
   return (
-    <div className="welcome-wrap">
-      <div className="welcome-card">
-        <div className="welcome-logo"><ToothLogo size={38} /></div>
-        <div className="welcome-eyebrow">Dental Practice Suite</div>
-        <h1 className="welcome-title">Run your entire clinic<br />from one calm screen.</h1>
-        <div className="welcome-sub">Appointments, charting, billing, inventory and reports — built for Indian dental practices, working fully offline.</div>
-        <div className="welcome-features">
-          {features.map((f) => {
-            const Ic = f.icon;
-            return (
-              <div className="welcome-feature" key={f.title}>
-                <span className="wf-ic"><Ic size={18} /></span>
-                <div>
-                  <div className="wf-title">{f.title}</div>
-                  <div className="wf-desc">{f.desc}</div>
-                </div>
-              </div>
-            );
-          })}
+    <div className="launch-wrap">
+      <div className="launch-orbits" />
+      <div className="launch-card">
+        <div className="launch-brand">
+          <div className="launch-logo"><ToothLogo size={28} /></div>
+          <div>Dental PMS</div>
         </div>
-        <button className="btn btn-primary welcome-cta" onClick={onStart}>Set up your clinic <Icons.back size={16} style={{ transform: 'rotate(180deg)' }} /></button>
-        <div className="welcome-foot">Takes about 2 minutes · You can change anything later in Settings</div>
+        <div className="launch-pill"><span>✦</span> Complete dental practice suite</div>
+        <h1>Run your entire clinic<br />from one calm screen.</h1>
+        <p>Appointments · Charting · Billing · Inventory<br />A private, offline-first system for your dental practice.</p>
+        <div className="launch-actions">
+          <button className="launch-primary" onClick={onStart}>Create your clinic account <span>→</span></button>
+          <button className="launch-secondary" onClick={onExisting}>Sign in to existing clinic</button>
+        </div>
+        <div className="launch-proof">
+          <span>✓ Private data</span>
+          <span>✓ Offline-first</span>
+          <span>✓ GST-ready billing</span>
+        </div>
       </div>
+      <div className="launch-copy">Dental PMS · Clinic data stays on this device</div>
+    </div>
+  );
+}
+
+function AccountSignup({ account, setAccount, onSubmit, onSignIn }) {
+  const [showPassword, setShowPassword] = useState(false);
+  const set = (key, value) => setAccount((a) => ({ ...a, [key]: value }));
+  return (
+    <div className="signup-wrap">
+      <aside className="signup-side">
+        <div className="signup-brand">
+          <div className="signup-logo"><ToothLogo size={26} /></div>
+          <div>Dental PMS</div>
+        </div>
+        <div className="signup-copy">
+          <h1>Clinic setup,<br />without the<br />paperwork.</h1>
+          <p>From the first appointment to the final invoice — one offline workspace for your dental team.</p>
+          <ul>
+            <li>Patients, visits, and odontogram records</li>
+            <li>Treatment plans and appointment scheduling</li>
+            <li>GST-ready invoices and bilingual receipts</li>
+            <li>Lab cases, stock, suppliers, and reports</li>
+          </ul>
+        </div>
+        <div className="signup-foot">Dental PMS<br />Offline-first clinic setup</div>
+      </aside>
+      <main className="signup-main">
+        <div className="signup-form">
+          <h1>Create your clinic account.</h1>
+          <p>Set up your owner profile and clinic workspace.</p>
+          <div className="signup-fields">
+            <div>
+              <label>Doctor / owner name <span>*</span></label>
+              <input value={account.ownerName} onChange={(e) => set('ownerName', e.target.value)} placeholder="Dr. Dev Sharma" />
+            </div>
+            <div>
+              <label>Mobile number <span>*</span></label>
+              <div className="phone-field">
+                <button type="button">🇮🇳 +91</button>
+                <input value={account.phone} onChange={(e) => set('phone', e.target.value)} placeholder="98765 43210" />
+              </div>
+              <small>This number will be saved in clinic settings</small>
+            </div>
+            <div>
+              <label>Clinic email</label>
+              <input value={account.email} onChange={(e) => set('email', e.target.value)} placeholder="hello@yourClinic.com" />
+            </div>
+            <div>
+              <label>Password <span>*</span></label>
+              <div className="password-field">
+                <input type={showPassword ? 'text' : 'password'} value={account.password} onChange={(e) => set('password', e.target.value)} placeholder="Min 8 characters" />
+                <button type="button" onClick={() => setShowPassword((v) => !v)}>⌾</button>
+              </div>
+            </div>
+          </div>
+          <label className="terms-row">
+            <input type="checkbox" checked={account.agreed} onChange={(e) => set('agreed', e.target.checked)} />
+            <span>I understand this clinic workspace stores data locally on this device.</span>
+          </label>
+          <button className="signup-submit" onClick={onSubmit}>Create clinic account <span>→</span></button>
+          <div className="signin-link">Already have an account? <button onClick={onSignIn}>Sign in</button></div>
+        </div>
+      </main>
     </div>
   );
 }
