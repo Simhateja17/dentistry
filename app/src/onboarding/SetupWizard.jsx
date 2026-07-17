@@ -307,6 +307,7 @@ function AccountSignup({ account, setAccount, onSubmit, onSignIn }) {
             <span>I understand this clinic workspace stores data locally on this device.</span>
           </label>
           <button className="signup-submit" onClick={onSubmit}>Create clinic account <span>→</span></button>
+          <div className="signup-or">or</div>
           <div className="signin-link">Already have an account? <button onClick={onSignIn}>Sign in</button></div>
         </div>
       </main>
